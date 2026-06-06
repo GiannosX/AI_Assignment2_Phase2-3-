@@ -42,7 +42,8 @@ def setup_ns_env(domain, render_mode=None):
 def load_dqn_mentor(domain, env):
     """Loads the pretrained DQN agent based on the domain."""
     agent_parameters = deepcopy(cfg.agent)
-    agent_parameters['state_size'] = env.observation_space.shape[0]
+    # NSClassicControlWrapper uses a Dict observation space
+    agent_parameters['state_size'] = env.observation_space['state'].shape[0]
     agent_parameters['action_size'] = env.action_space.n
     
     # Select the correct model path based on the domain
@@ -72,6 +73,7 @@ def run_experiment(domain, num_episodes=500, num_repetitions=3):
         
         # Setup env and mentor for this repetition
         ns_env = setup_ns_env(domain, render_mode=None)
+        ns_env.reset() # Must reset before get_planning_env()
         mentor = load_dqn_mentor(domain, ns_env)
         
         # Initialize agents
