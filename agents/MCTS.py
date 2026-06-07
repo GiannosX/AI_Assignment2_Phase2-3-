@@ -5,6 +5,14 @@ import ns_gym as nsg
 import ns_gym.base as base
 import random
 import math
+import warnings
+
+# Suppress library-internal warnings that are known non-fatal issues
+warnings.filterwarnings("ignore", category=UserWarning, module="ns_gym")
+warnings.filterwarnings("ignore", message=".*Deepcopy for MountainCarEnv.*")
+warnings.filterwarnings("ignore", message=".*Gravity cannot be negative.*")
+# Suppress gymnasium's step warning for cleaner experiment output
+warnings.filterwarnings("ignore", message=".*You are calling 'step()' even though this environment has already returned terminated = True.*")
 
 class RandomAgent(base.Agent):
     """A random agent that samples actions uniformly at random from the action space."""
@@ -12,7 +20,7 @@ class RandomAgent(base.Agent):
         self.env = env
 
     def act(self, observation, env):
-        return self.env.action_space.sample()
+        return env.action_space.sample()
 
 class MCTSNode:
     def __init__(self, state, parent=None, action=None, prior=0):
@@ -47,11 +55,13 @@ class StandardMCTSAgent(base.Agent):
             node = root
             done = False
             truncated = False
+            accumulated_reward = 0
             
             # 1. Selection
             while node.is_fully_expanded(sim_env.action_space) and node.children:
                 action, node = self._select_child(node)
-                _, _, done, truncated, _ = sim_env.step(action)
+                _, reward, done, truncated, _ = sim_env.step(action)
+                accumulated_reward += reward
                 if done or truncated:
                     break
             
@@ -59,6 +69,7 @@ class StandardMCTSAgent(base.Agent):
             if not (done or truncated) and not node.is_fully_expanded(sim_env.action_space):
                 action = self._get_unexpanded_action(node, sim_env.action_space)
                 obs, reward, done, truncated, _ = sim_env.step(action)
+                accumulated_reward += reward
                 
                 # For Informed MCTS, we'll override the expansion to use priors
                 prior = self._get_prior(node, action)
@@ -68,12 +79,11 @@ class StandardMCTSAgent(base.Agent):
             
             # 3. Simulation (Rollout)
             # Only simulate if we haven't reached a terminal state yet
-            val = 0
             if not (done or truncated):
-                val = self._simulate(sim_env)
+                accumulated_reward += self._simulate(sim_env)
             
             # 4. Backpropagation
-            self._backpropagate(node, val)
+            self._backpropagate(node, accumulated_reward)
             
         return self._best_action(root)
 

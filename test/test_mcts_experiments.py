@@ -138,7 +138,7 @@ def plot_and_save(domain, results):
 
 if __name__ == "__main__":
     # Check for test mode (shorter run)
-    is_test = True # Set to False for the full assignment run
+    is_test = False # Set to False for the full assignment run
     
     if is_test:
         print("RUNNING IN TEST MODE (Reduced episodes and repetitions)")
